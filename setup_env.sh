@@ -15,8 +15,8 @@ sudo apt-get install -y git tmux htop wget curl build-essential rsync
 
 # ── 2. Espacio de trabajo ────────────────────────────────────────
 echo "[2/5] Creando estructura de directorios..."
-mkdir -p /root/workspace/{data/mimic3,checkpoints,logs}
-cd /root/workspace
+mkdir -p /root/AMD_PROJECT/{data/mimic3,checkpoints,logs}
+cd /root/AMD_PROJECT
 
 # Clonar repositorio si existe y no está ya descargado
 if [ ! -d ".git" ]; then
@@ -31,7 +31,7 @@ fi
 
 # ── 3. Directorios MIMIC-III ─────────────────────────────────────
 echo "[3/5] Preparando directorios para datos MIMIC-III..."
-mkdir -p /root/workspace/data/mimic3/{raw,processed}
+mkdir -p /root/AMD_PROJECT/data/mimic3/{raw,processed}
 echo "  Directorios listos. Agente 1 añadirá los comandos wget de PhysioNet."
 
 # ── 4. Docker ────────────────────────────────────────────────────
@@ -48,15 +48,15 @@ else
 fi
 
 # Detener contenedor anterior si existe (rearranque diario limpio)
-if sudo docker ps -a --format '{{.Names}}' | grep -q '^entorno_agente$'; then
+if sudo docker ps -a --format '{{.Names}}' | grep -q '^rocm$'; then
     echo "  Deteniendo contenedor anterior..."
-    sudo docker stop entorno_agente && sudo docker rm entorno_agente
+    sudo docker stop rocm && sudo docker rm rocm
 fi
 
 # ── 5. Contenedor ROCm ───────────────────────────────────────────
 echo "[5/5] Levantando contenedor rocm/primus:v26.2..."
 sudo docker run -d \
-    --name entorno_agente \
+    --name rocm \
     --network=host \
     --device=/dev/kfd \
     --device=/dev/dri \
@@ -64,17 +64,17 @@ sudo docker run -d \
     --ipc=host \
     --cap-add=SYS_PTRACE \
     --security-opt seccomp=unconfined \
-    -v /root/workspace:/workspace \
+    -v /root/AMD_PROJECT:/workspace \
     rocm/primus:v26.2 sleep infinity
 
 echo ""
 echo "==========================================================="
 echo " ENTORNO LISTO"
 echo "==========================================================="
-echo " Contenedor activo: $(sudo docker ps --filter name=entorno_agente --format '{{.Status}}')"
+echo " Contenedor activo: $(sudo docker ps --filter name=rocm --format '{{.Status}}')"
 echo ""
 echo " Comandos útiles:"
-echo "   Entrar al contenedor : sudo docker exec -it entorno_agente /bin/bash"
-echo "   Ver logs GPU         : sudo docker exec entorno_agente rocminfo | grep 'Agent Type'"
-echo "   Ver uso VRAM         : sudo docker exec entorno_agente rocm-smi"
+echo "   Entrar al contenedor : sudo docker exec -it rocm /bin/bash"
+echo "   Ver logs GPU         : sudo docker exec rocm rocminfo | grep 'Agent Type'"
+echo "   Ver uso VRAM         : sudo docker exec rocm rocm-smi"
 echo "==========================================================="

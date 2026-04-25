@@ -1,3 +1,17 @@
-
-# Archivos internos de agentes — no exponer
+# Archivos internos de agentes - no exponer
 Memory_*.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Datos clinicos - nunca al repo
+*.dat
+*.hea
+*.atr
+data/
