@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import WebglPlot, { WebglLine, ColorRGBA } from 'webgl-plot';
+import { WebglPlot, WebglLine, ColorRGBA } from 'webgl-plot';
 
 // ─── Constantes de protocolo (deben coincidir con backend/main.py) ────────────
 const N_CHANNELS  = 12;
