@@ -1,0 +1,8 @@
+# Agent 1 runtime deps — Day 1
+# torch is provided by the rocm/primus:v26.2 base image with ROCm support.
+# Do NOT pin torch here: pip would replace the ROCm build with the CUDA wheel.
+numpy>=1.26,<2.0
+wfdb==4.1.2
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+websockets==13.1
