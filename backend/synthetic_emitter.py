@@ -102,6 +102,10 @@ class SyntheticEmitter:
     # API pública
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # API pública
+    # ------------------------------------------------------------------
+
     def next_frame(self) -> np.ndarray:
         """
         Devuelve el próximo chunk de señal ECG.
@@ -127,5 +131,10 @@ class SyntheticEmitter:
 
         # Avanzar fase
         self._phase = (self._phase + self.chunk_size) % self.cycle_samples
+
+        # --- DIAGNÓSTICO CAPA 1: INYECTADO AQUÍ ---
+        print(f"[EMIT] frame min/max: {frame.min():.6f} / {frame.max():.6f}, shape: {frame.shape}, dtype: {frame.dtype}")
+        print(f"[EMIT] channel[0] primeros 5 vals: {frame[0, :5]}")
+        # ------------------------------------------
 
         return frame  # (12, 25), float32

@@ -117,7 +117,12 @@ async def stream_ecg(websocket: WebSocket) -> None:
             assert len(payload) == FRAME_BYTES, (
                 f"Frame size mismatch: {len(payload)} != {FRAME_BYTES}"
             )
-
+            # --- DIAGNÓSTICO CAPA 2: INYECTADO AQUÍ ---
+            # Solo imprimimos 1 de cada 20 frames (aprox 1 vez por segundo) para no inundar la consola
+            if np.random.rand() < 0.05:
+                 unpacked_floats = struct.unpack('<2f', payload[:8])
+                 print(f"[WS-SEND] bytes len: {len(payload)}, primeros 8 bytes (2 float32): {unpacked_floats}")
+            # ------------------------------------------
             await websocket.send_bytes(payload)
 
             # Cede el event loop: permite atender otros WebSockets durante la espera

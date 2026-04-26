@@ -121,7 +121,7 @@ export default function ECGDashboard() {
     ws.onerror = (e) => console.error('[WS] error:', e);
     ws.onclose = () => console.log('[WS] desconectado');
 
-    ws.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+   ws.onmessage = (event: MessageEvent<ArrayBuffer>) => {
       if (event.data.byteLength !== FRAME_BYTES) {
         console.warn(`[WS] frame inesperado: ${event.data.byteLength}B (esperado ${FRAME_BYTES}B)`);
         return;
@@ -129,12 +129,18 @@ export default function ECGDashboard() {
 
       const floats = new Float32Array(event.data);
 
+      // --- DIAGNÓSTICO CAPA 3: INYECTADO AQUÍ ---
+      // Imprimimos solo el 5% de los frames (aprox 1 vez por segundo) para no colapsar la consola
+      if (Math.random() < 0.05) {
+        console.log(`[WS-RECV] ArrayBuffer len: ${event.data.byteLength}, float32 count: ${floats.length}`);
+        console.log(`[WS-RECV] primeros 2 floats: ${floats[0].toFixed(6)}, ${floats[1].toFixed(6)}`);
+        console.log(`[WS-RECV] min/max en buffer: ${Math.min(...floats).toFixed(6)}, ${Math.max(...floats).toFixed(6)}`);
+      }
+      // ------------------------------------------
+
       // Cada canal ocupa CHUNK_SIZE = 25 floats consecutivos (row-major)
-      // floats[ch * CHUNK_SIZE .. (ch+1) * CHUNK_SIZE - 1] = canal ch
       for (let ch = 0; ch < N_CHANNELS; ch++) {
-        // subarray devuelve una vista sin copia — operación O(1)
         const chunk = floats.subarray(ch * CHUNK_SIZE, (ch + 1) * CHUNK_SIZE);
-        // shiftAdd: desplaza el buffer a la izquierda y agrega chunk al final
         lines[ch].shiftAdd(chunk);
       }
     };
