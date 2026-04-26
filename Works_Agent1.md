@@ -18,12 +18,34 @@ contratos de interfaz vigentes y estado de validación en hardware real.
 | Componente | Valor |
 |------------|-------|
 | GPU | AMD MI300X — `gfx942` |
-| VRAM total | 205.8 GB |
-| VRAM libre (idle) | 205.8 GB |
+| VRAM HBM total | 192 GB |
+| VRAM baseline (idle) | 0.0 GB |
+| VRAM pico forward pass | **0.432 GB** |
 | PyTorch | 2.9.0.dev+rocm7.0.0 |
 | ROCm | 7.0.0 (instancia AMD Developer Cloud) |
 | Python | 3.10.12 |
 | Workspace | `/root/AMD_PROJECT` |
+
+### Telemetría VRAM — Implicaciones para Agente 2 (Día 4)
+
+Medición en hardware real (2026-04-26):
+
+| Métrica | Valor |
+|---------|-------|
+| VRAM baseline | 0.0 GB |
+| VRAM pico 1 forward pass | 0.432 GB |
+| VRAM disponible para ensemble | 192 GB |
+| Samples máximos teóricos (100% VRAM) | 444 |
+| Samples máximos seguros (80% VRAM) | **355** |
+| **Recomendación ensemble Día 4** | **N = 30–50 samples** |
+
+**Para Agente 2:**
+- Con N=30: 30 × 0.432 = **12.96 GB** — 6.7% de VRAM, completamente seguro
+- Con N=50: 50 × 0.432 = **21.6 GB** — 11.2% de VRAM, sin riesgo
+- Con N=100: 100 × 0.432 = **43.2 GB** — 22.5% de VRAM, viable si se necesita
+- **No hay cuello de botella de memoria para el ensemble VP-SDE en este hardware**
+- Agente 1 NO necesita ajustar paralelismo en Día 4 por restricción de VRAM
+- Revisar si la restricción real es tiempo de cómputo, no memoria
 
 ---
 
