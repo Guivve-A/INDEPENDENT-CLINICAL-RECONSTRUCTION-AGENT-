@@ -44,7 +44,7 @@ const BUFFER_SAMPLES = 2500;
  *
  * Ajustar este valor durante Demo-Mode según preferencia visual del jurado.
  */
-const VISUAL_GAIN = 4.0;
+const VISUAL_GAIN = 6.0;
 
 /** Nombres clínicos de las 12 derivaciones estándar */
 const LEAD_NAMES = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'] as const;
