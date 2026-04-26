@@ -302,3 +302,5 @@ def run_all() -> None:
 
 if __name__ == "__main__":
     run_all()
+vram_pico_gb = torch.cuda.max_memory_allocated() / 1e9
+print(f"\n[INFO] VRAM pico del forward pass: {vram_pico_gb:.3f} GB")
