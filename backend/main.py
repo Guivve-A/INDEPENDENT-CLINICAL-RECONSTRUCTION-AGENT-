@@ -16,7 +16,9 @@ Día 3: SyntheticEmitter se reemplaza por el stream real de Agente 1 +
 import asyncio
 import sys
 import os
-
+import struct
+import numpy as np
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 # Permite importar desde la raíz del proyecto tanto en dev como en Docker
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

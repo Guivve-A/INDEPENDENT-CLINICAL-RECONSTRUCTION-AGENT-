@@ -21,7 +21,7 @@ import { WebglPlot, WebglLine, ColorRGBA } from 'webgl-plot';
 const N_CHANNELS  = 12;
 const CHUNK_SIZE  = 25;
 const FRAME_BYTES = N_CHANNELS * CHUNK_SIZE * 4;  // 1200
-const WS_URL      = 'ws://localhost:8000/stream';
+const WS_URL      = process.env.NEXT_PUBLIC_ECG_WS_URL ?? 'ws://localhost:8000/stream';
 
 // ─── Constantes de renderizado ────────────────────────────────────────────────
 /** Muestras en el buffer circular: 5 segundos a 500 Hz */
@@ -114,6 +114,7 @@ export default function ECGDashboard() {
     });
 
     // ── 4. Conexión WebSocket ─────────────────────────────────────────────────
+    // URL configurable por entorno (devtunnel en remoto o localhost en local)
     const ws = new WebSocket(WS_URL);
     ws.binaryType = 'arraybuffer';
 

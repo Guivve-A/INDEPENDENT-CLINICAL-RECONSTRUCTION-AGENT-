@@ -78,9 +78,23 @@ x_t, noise = sde.perturb(x0, t)   # x0:(B,12,5000), t:(B,) → x_t,noise:(B,12,5
 mean, std  = sde.marginal_prob(x0, t)  # mean:(B,12,5000), std:(B,1,1)
 ```
 
-### Resultados de tests en hardware real — MI300X (2026-04-26)
+### Resultados de tests en hardware real — MI300X (2026-04-26) — COMPLETO
 
 ```
+────────────────────────────────────────────────────────────
+  GPU  : AMD Radeon Graphics
+  VRAM : 205.8 GB
+  BF16 : ✓
+────────────────────────────────────────────────────────────
+
+[OK] UNet1D forward pass shape: (4, 1, 5000)
+[OK] UNet1D batch=1 shape: (1, 1, 5000)
+[OK] UNet1D sin NaN en output
+[OK] UNet1D gradientes fluyen correctamente
+[INFO] UNet1D parámetros: 12.97M  (51.9 MB en f32 master weights)
+[INFO] VRAM pico forward pass (batch=4, BF16): 0.432 GB  (de 205.8 GB disponibles)
+[OK] ResBlock1D same channels (64→64)
+[OK] ResBlock1D expansión de canales (12→64)
 [OK] ResBlock1D todas las dilations preservan L=5000
 [OK] VPSDECoefficients ᾱ(t) rango: [0.0066, 1.0000]
 [OK] VPSDECoefficients ᾱ(t) monótonamente decreciente
@@ -98,31 +112,39 @@ mean, std  = sde.marginal_prob(x0, t)  # mean:(B,12,5000), std:(B,1,1)
 ════════════════════════════════════════════════════════════
 ```
 
-> ⚠️ El output capturado es la segunda mitad del run (primeros tests UNet1D
-> no están en el fragmento, pero el contador `18 passed, 0 failed` confirma
-> que todos pasaron). En el próximo run capturar desde el inicio.
+### Datos confirmados en hardware real
 
-### Dato matemático confirmado en hardware
+| Métrica | Valor real | Nota |
+|---------|-----------|------|
+| GPU     | AMD Radeon Graphics (MI300X en ROCm) | Nombre de driver — hardware correcto |
+| VRAM total | 205.8 GB | ✓ |
+| BF16 | ✓ | `torch.cuda.is_bf16_supported()` = True |
+| Parámetros UNet1D | **12.97 M** | Estimación previa era ~20M — corrección aplicada |
+| Pesos f32 master | **51.9 MB** | Muy ligero para 205.8 GB VRAM |
+| VRAM pico batch=4 BF16 | **0.432 GB** | Solo el 0.21% de la VRAM disponible |
+| ᾱ(t=0) | 1.0000 | señal intacta en t=0 ✓ |
+| ᾱ(t=1) | 0.0066 | ≈ruido puro en t=1 ✓ |
+| β range | [0.10, 20.00] | schedule lineal correcto ✓ |
 
-| Variable | Valor real | Significado |
-|----------|-----------|-------------|
-| `ᾱ(t=0)` | 1.0000 | t=0: señal intacta ✓ |
-| `ᾱ(t=1)` | 0.0066 | t=1: casi ruido puro ✓ |
-| `β(t=0)` | 0.10   | β_min verificado ✓ |
-| `β(t=1)` | 20.00  | β_max verificado ✓ |
-| `std > 0`| ✓      | Sin división por cero en loss ✓ |
-
-> **Nota para Día 2:** `std(t=1) = √(1−0.0066) ≈ 0.9967` — la señal en t=1
-> no es ruido puro exacto, sino ≈99.7% ruido. Esto es correcto y estable.
-
-### Dato crítico para Agente 1 (coordinar VRAM antes de Día 4)
+### → REPORTE A AGENTE 1 — VRAM para ensemble (Día 4)
 
 ```
-VRAM pico forward pass batch=4 BF16: ⚠️ no capturado en este run
-VRAM disponible MI300X:               205.8 GB
+MODELO:
+  Parámetros   : 12.97 M
+  Pesos f32    : 51.9 MB
+  VRAM pico fwd: 0.432 GB  (batch=4, BF16)
+  Por muestra  : ~0.108 GB (batch=1 estimado)
+
+HEADROOM PARA ENSEMBLE (secuencial, N muestras × batch=1):
+  VRAM por run : ~0.108 GB  (activaciones + modelo)
+  N=20         : ~0.108 GB  (secuencial — reutiliza memoria)
+  N=50         : ~0.108 GB  (secuencial — mismo footprint)
+
+  → No hay restricción de VRAM para ningún N razonable.
+  → Agente 1 puede autorizar N_ENSEMBLE hasta N=50 sin coordinación adicional.
+  → Si se ejecuta en paralelo (batch=N): ~N × 0.108 GB
+    N=50 paralelo ≈ 5.4 GB — sigue siendo < 3% de 205.8 GB.
 ```
-> Ejecutar en próxima sesión:
-> `python -c "import torch; from model.unet1d import UNet1D; m=UNet1D().cuda().eval(); x=torch.randn(4,12,5000,dtype=torch.bfloat16,device='cuda'); torch.autocast('cuda',dtype=torch.bfloat16).__enter__(); m(x,torch.rand(4).cuda()); print(torch.cuda.max_memory_allocated()/1e9,'GB')"`
 
 ### Checklist Día 1
 
@@ -130,7 +152,7 @@ VRAM disponible MI300X:               205.8 GB
 - [x] `model/vpsde.py` — VPSDECoefficients implementado
 - [x] `tests/test_forward_pass.py` — 18 tests escritos
 - [x] Tests ejecutados en MI300X — 18/18 passed
-- [ ] VRAM pico exacto medido y reportado a Agente 1 (pendiente próximo run)
+- [x] VRAM pico confirmado: 0.432 GB — reportado a Agente 1
 
 ---
 
