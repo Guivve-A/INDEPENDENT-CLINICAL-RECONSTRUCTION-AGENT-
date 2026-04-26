@@ -1,24 +1,26 @@
 #!/bin/bash
-# setup_env.sh — Script de automatización diaria de infraestructura AMD MI300X
-# Ejecutar en el Droplet recién creado: bash setup_env.sh
+# setup_env.sh — Configuración del entorno en AMD Developer Cloud
+# Ejecutar una vez por instancia: bash setup_env.sh
+# Sin Docker — PyTorch y ROCm disponibles directamente en el host
 
-set -e  # Detener si cualquier comando falla
+set -e
 
 echo "==========================================================="
-echo " Iniciando configuración del entorno — Agente Clínico AMD"
+echo " Configuración del entorno — Agente Clínico AMD"
+echo " AMD MI300X | ROCm 7.0.0 | PyTorch 2.9.0.dev+rocm7.0.0"
 echo "==========================================================="
 
-# ── 1. Sistema anfitrión ─────────────────────────────────────────
-echo "[1/5] Actualizando sistema e instalando dependencias base..."
-sudo apt-get update -qq
-sudo apt-get install -y git tmux htop wget curl build-essential rsync
+# ── 1. Dependencias del sistema ────────────────────────────────────
+echo "[1/4] Instalando dependencias del sistema..."
+apt-get update -qq
+apt-get install -y git python3-venv python3-pip wget curl htop tmux \
+    build-essential rsync python3-dev
 
-# ── 2. Espacio de trabajo ────────────────────────────────────────
-echo "[2/5] Creando estructura de directorios..."
-mkdir -p /root/AMD_PROJECT/{data/mimic3,checkpoints,logs}
-cd /root/AMD_PROJECT
+# ── 2. Workspace y repositorio ─────────────────────────────────────
+echo "[2/4] Preparando workspace en ~/workspace..."
+mkdir -p ~/workspace/{data/mimic3/raw,data/mimic3/processed,checkpoints,logs}
+cd ~/workspace
 
-# Clonar repositorio si existe y no está ya descargado
 if [ ! -d ".git" ]; then
     echo "  Clonando repositorio..."
     git clone https://github.com/Guivve-A/INDEPENDENT-CLINICAL-RECONSTRUCTION-AGENT- . \
@@ -26,55 +28,67 @@ if [ ! -d ".git" ]; then
         || echo "  Repositorio no disponible aún — continuando sin clonar."
 else
     echo "  Repositorio ya presente — haciendo pull..."
-    git pull || echo "  Pull falló (posible repo vacío) — continuando."
+    git pull || echo "  Pull falló (repo vacío) — continuando."
 fi
 
-# ── 3. Directorios MIMIC-III ─────────────────────────────────────
-echo "[3/5] Preparando directorios para datos MIMIC-III..."
-mkdir -p /root/AMD_PROJECT/data/mimic3/{raw,processed}
-echo "  Directorios listos. Agente 1 añadirá los comandos wget de PhysioNet."
+# Configurar identidad git
+git config user.email "guillermoveliz231@hotmail.com" 2>/dev/null || true
+git config user.name "AMD Hackathon" 2>/dev/null || true
 
-# ── 4. Docker ────────────────────────────────────────────────────
-echo "[4/5] Verificando Docker..."
-if ! command -v docker &> /dev/null; then
-    echo "  Docker no detectado — instalando..."
-    sudo apt-get install -y docker.io
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    usermod -aG docker root
-    echo "  Docker instalado."
+# ── 3. Entorno virtual Python ──────────────────────────────────────
+echo "[3/4] Creando/actualizando entorno virtual ~/dispositivo_ia..."
+if [ ! -d ~/dispositivo_ia ]; then
+    python3 -m venv ~/dispositivo_ia --system-site-packages
+    echo "  Venv creado (con acceso a paquetes del sistema — incluye PyTorch ROCm)"
 else
-    echo "  Docker ya disponible: $(docker --version)"
+    echo "  Venv ya existe — omitiendo creación."
 fi
 
-# Detener contenedor anterior si existe (rearranque diario limpio)
-if sudo docker ps -a --format '{{.Names}}' | grep -q '^rocm$'; then
-    echo "  Deteniendo contenedor anterior..."
-    sudo docker stop rocm && sudo docker rm rocm
+source ~/dispositivo_ia/bin/activate
+
+# Instalar dependencias del proyecto (PyTorch viene del sistema ROCm)
+pip install --upgrade pip -q
+if [ -f ~/workspace/requirements.txt ]; then
+    echo "  Instalando requirements.txt..."
+    pip install -r ~/workspace/requirements.txt -q
+else
+    echo "  requirements.txt no encontrado — instalando dependencias base..."
+    pip install wfdb scipy numpy fastapi uvicorn websockets -q
 fi
 
-# ── 5. Contenedor ROCm ───────────────────────────────────────────
-echo "[5/5] Levantando contenedor rocm/primus:v26.2..."
-sudo docker run -d \
-    --name rocm \
-    --network=host \
-    --device=/dev/kfd \
-    --device=/dev/dri \
-    --group-add=video \
-    --ipc=host \
-    --cap-add=SYS_PTRACE \
-    --security-opt seccomp=unconfined \
-    -v /root/AMD_PROJECT:/workspace \
-    rocm/primus:v26.2 sleep infinity
+# ── 4. Verificar GPU y PyTorch ─────────────────────────────────────
+echo "[4/4] Verificando hardware GPU y PyTorch..."
+python3 -c "
+import torch
+print(f'  PyTorch   : {torch.__version__}')
+print(f'  CUDA/ROCm : {torch.cuda.is_available()}')
+if torch.cuda.is_available():
+    print(f'  GPU       : {torch.cuda.get_device_name(0)}')
+    free, total = torch.cuda.mem_get_info()
+    print(f'  VRAM      : {total/1e9:.1f} GB total, {free/1e9:.1f} GB libre')
+else:
+    print('  ADVERTENCIA: GPU no detectada — verificar ROCm')
+"
 
 echo ""
 echo "==========================================================="
 echo " ENTORNO LISTO"
 echo "==========================================================="
-echo " Contenedor activo: $(sudo docker ps --filter name=rocm --format '{{.Status}}')"
+echo " Workspace  : ~/workspace"
+echo " Venv       : ~/dispositivo_ia  (--system-site-packages)"
 echo ""
-echo " Comandos útiles:"
-echo "   Entrar al contenedor : sudo docker exec -it rocm /bin/bash"
-echo "   Ver logs GPU         : sudo docker exec rocm rocminfo | grep 'Agent Type'"
-echo "   Ver uso VRAM         : sudo docker exec rocm rocm-smi"
+echo " Para trabajar cada sesión:"
+echo "   source ~/dispositivo_ia/bin/activate"
+echo "   cd ~/workspace"
+echo ""
+echo " Verificar GPU:"
+echo "   python3 -c \"import torch; print(torch.cuda.get_device_name(0))\""
+echo ""
+echo " Backup nocturno (antes de destruir la instancia):"
+echo "   cd ~/workspace && git branch -M main && git add -A && \\"
+echo "   git commit -m \"Backup \$(date +%Y-%m-%d)\" --allow-empty && \\"
+echo "   git push origin main"
+echo ""
+echo " Puertos UFW para Día 3+:"
+echo "   sudo ufw allow 8000 && sudo ufw allow 3000"
 echo "==========================================================="

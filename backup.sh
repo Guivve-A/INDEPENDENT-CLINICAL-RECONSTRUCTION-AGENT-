@@ -35,7 +35,7 @@ echo "==========================================================="
 # ── Paso 1: Git commit + push desde el Droplet ───────────────────
 echo "[1/3] Haciendo git commit y push desde el Droplet..."
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@$IP << 'REMOTE'
-    cd /root/workspace
+    cd ~/workspace
     FECHA=$(date +%Y-%m-%d)
 
     # Configurar identidad git si no está configurada
@@ -44,12 +44,13 @@ ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@$IP << 'REMOTE'
 
     # Verificar que hay un remote configurado
     if git remote -v 2>/dev/null | grep -q origin; then
+        git branch -M main 2>/dev/null || true
         git add -A
         git diff --cached --quiet && echo "  Sin cambios nuevos." || \
-            (git commit -m "Backup diario $FECHA [auto]" && git push && echo "  Push exitoso.")
+            (git commit -m "Backup diario $FECHA [auto]" && git push origin main && echo "  Push exitoso.")
     else
         echo "  ADVERTENCIA: No hay remote git configurado. Omitiendo push."
-        echo "  Crea el repo y ejecuta: git remote add origin <URL>"
+        echo "  Configura con: git remote add origin <URL_DEL_REPO>"
     fi
 REMOTE
 
@@ -59,7 +60,7 @@ mkdir -p "$LOCAL_CHECKPOINTS"
 
 # Intentar copiar desde el host (volumen montado) o desde el contenedor
 scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
-    "root@$IP:/root/workspace/checkpoints/*.pt" \
+    "root@$IP:~/workspace/checkpoints/*.pt" \
     "$LOCAL_CHECKPOINTS/" 2>/dev/null \
     && echo "  Pesos copiados en: $LOCAL_CHECKPOINTS/" \
     || echo "  Sin archivos .pt aún (normal en Días 1-2)."
@@ -67,7 +68,7 @@ scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
 # ── Paso 3: Copiar logs relevantes ───────────────────────────────
 echo "[3/3] Copiando logs de entrenamiento..."
 scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
-    "root@$IP:/root/workspace/logs/*" \
+    "root@$IP:~/workspace/logs/*" \
     "$LOCAL_CHECKPOINTS/" 2>/dev/null \
     && echo "  Logs copiados." \
     || echo "  Sin logs aún."

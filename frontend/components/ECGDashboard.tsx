@@ -27,6 +27,25 @@ const WS_URL      = 'ws://localhost:8000/stream';
 /** Muestras en el buffer circular: 5 segundos a 500 Hz */
 const BUFFER_SAMPLES = 2500;
 
+/**
+ * VISUAL_GAIN — factor de amplificación puramente visual.
+ *
+ * Problema: los datos fisiológicos (onda R ≈ 1.0 mV) con scaleY base
+ * de 1/N_CHANNELS producen ~36 px de excursión en 1080p → invisible.
+ *
+ * Solución: multiplicar scaleY por VISUAL_GAIN para amplificar la traza
+ * SIN modificar los datos. El contrato con Agente 2 (amplitudes en mV)
+ * permanece inalterado — esta ganancia es solo rendering.
+ *
+ * Con VISUAL_GAIN = 4.0:
+ *   - Onda R (1.0 mV × 4/12)  ≈ 180 px — prominente, sobresale entre canales ✓
+ *   - Onda T (0.35 mV × 4/12) ≈  63 px — contiene en la banda               ✓
+ *   - Onda P (0.15 mV × 4/12) ≈  27 px — visible y clara                     ✓
+ *
+ * Ajustar este valor durante Demo-Mode según preferencia visual del jurado.
+ */
+const VISUAL_GAIN = 4.0;
+
 /** Nombres clínicos de las 12 derivaciones estándar */
 const LEAD_NAMES = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'] as const;
 
@@ -86,8 +105,9 @@ export default function ECGDashboard() {
       // offsetY del canal ch: parte el canvas en N bandas iguales
       line.offsetY = 1 - (2 * ch + 1) / N_CHANNELS;
 
-      // scaleY: cada canal ocupa el 80% de su banda vertical
-      line.scaleY = (1.0 / N_CHANNELS) * 0.80;
+      // scaleY: amplitud visual = ganancia × tamaño de banda por canal
+      // VISUAL_GAIN amplifica sin tocar datos — ver comentario de constante arriba
+      line.scaleY = (1.0 / N_CHANNELS) * VISUAL_GAIN;
 
       wglp.addLine(line);
       return line;

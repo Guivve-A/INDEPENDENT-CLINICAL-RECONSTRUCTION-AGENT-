@@ -20,11 +20,11 @@ contratos de interfaz vigentes y estado de validación en hardware real.
 | PyTorch | 2.9.0.dev+rocm7.0.0 |
 | ROCm | 7.0.0 |
 | Python | 3.10.12 |
-| Workspace | `/root/AMD_PROJECT` |
+| Workspace | `~/workspace` |
 
 ---
 
-## DÍA 1 — IMPLEMENTADO, PENDIENTE DE EJECUCIÓN EN HARDWARE (2026-04-25)
+## DÍA 1 — ✅ COMPLETO (2026-04-26)
 
 ### Archivos entregados
 
@@ -78,58 +78,59 @@ x_t, noise = sde.perturb(x0, t)   # x0:(B,12,5000), t:(B,) → x_t,noise:(B,12,5
 mean, std  = sde.marginal_prob(x0, t)  # mean:(B,12,5000), std:(B,1,1)
 ```
 
-### Resultados de tests en hardware real
+### Resultados de tests en hardware real — MI300X (2026-04-26)
 
 ```
-⚠️  PENDIENTE — ejecutar en instancia MI300X y copiar output aquí.
-
-Comando (en Terminal de Jupyter, dentro del contenedor rocm):
-    cd /root/AMD_PROJECT && python tests/test_forward_pass.py
-
-─── OUTPUT ESPERADO (completar con valores reales) ────────────────────
-  GPU  : AMD Instinct MI300X
-  VRAM : 205.8 GB
-  BF16 : ✓
-
-[OK] UNet1D forward pass shape: (4, 1, 5000)
-[OK] UNet1D batch=1 shape: (1, 1, 5000)
-[OK] UNet1D sin NaN en output
-[OK] UNet1D gradientes fluyen correctamente
-[INFO] UNet1D parámetros: ___.___M  (___._ MB en f32 master weights)
-[INFO] VRAM pico forward pass (batch=4, BF16): _.___GB  (de 205.8 GB disponibles)
-[OK] ResBlock1D same channels (64→64)
-[OK] ResBlock1D expansión de canales (12→64)
 [OK] ResBlock1D todas las dilations preservan L=5000
-[OK] VPSDECoefficients ᾱ(t) rango: [_.____,  _.____]
+[OK] VPSDECoefficients ᾱ(t) rango: [0.0066, 1.0000]
 [OK] VPSDECoefficients ᾱ(t) monótonamente decreciente
-[OK] VPSDECoefficients marginal_prob shapes: mean(4,12,5000) std(4,1,1)
+[OK] VPSDECoefficients marginal_prob shapes: mean(4, 12, 5000) std(4, 1, 1)
 [OK] VPSDECoefficients std > 0 para todo t > 0
 [OK] VPSDECoefficients perturb shapes correctos
 [OK] VPSDECoefficients β(t) rango: [0.10, 20.00]
 [OK] get_timestep_embedding shape (4, 256)
 [OK] get_timestep_embedding es determinista
 [OK] get_timestep_embedding distingue timesteps distintos
-════════════════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════
   Día 1 — Agente 2   18 passed, 0 failed
   ✓ Forward pass validado. Listo para Día 2 (score-matching).
-════════════════════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════════
 ```
+
+> ⚠️ El output capturado es la segunda mitad del run (primeros tests UNet1D
+> no están en el fragmento, pero el contador `18 passed, 0 failed` confirma
+> que todos pasaron). En el próximo run capturar desde el inicio.
+
+### Dato matemático confirmado en hardware
+
+| Variable | Valor real | Significado |
+|----------|-----------|-------------|
+| `ᾱ(t=0)` | 1.0000 | t=0: señal intacta ✓ |
+| `ᾱ(t=1)` | 0.0066 | t=1: casi ruido puro ✓ |
+| `β(t=0)` | 0.10   | β_min verificado ✓ |
+| `β(t=1)` | 20.00  | β_max verificado ✓ |
+| `std > 0`| ✓      | Sin división por cero en loss ✓ |
+
+> **Nota para Día 2:** `std(t=1) = √(1−0.0066) ≈ 0.9967` — la señal en t=1
+> no es ruido puro exacto, sino ≈99.7% ruido. Esto es correcto y estable.
 
 ### Dato crítico para Agente 1 (coordinar VRAM antes de Día 4)
 
 ```
-VRAM pico forward pass batch=4 BF16: _______ GB    ← completar con valor real
-VRAM disponible MI300X:               205.8   GB
-Headroom estimado para ensemble:      ~___    GB    ← Agente 1 calcula
+VRAM pico forward pass batch=4 BF16: ⚠️ no capturado en este run
+VRAM disponible MI300X:               205.8 GB
 ```
+> Ejecutar en próxima sesión:
+> `python -c "import torch; from model.unet1d import UNet1D; m=UNet1D().cuda().eval(); x=torch.randn(4,12,5000,dtype=torch.bfloat16,device='cuda'); torch.autocast('cuda',dtype=torch.bfloat16).__enter__(); m(x,torch.rand(4).cuda()); print(torch.cuda.max_memory_allocated()/1e9,'GB')"`
 
 ### Checklist Día 1
 
 - [x] `model/unet1d.py` — UNet1D + ResBlock1D implementados
 - [x] `model/vpsde.py` — VPSDECoefficients implementado
 - [x] `tests/test_forward_pass.py` — 18 tests escritos
-- [ ] Tests ejecutados en MI300X — output real copiado arriba
-- [ ] VRAM pico reportado a Agente 1
+- [x] Tests ejecutados en MI300X — 18/18 passed
+- [ ] VRAM pico exacto medido y reportado a Agente 1 (pendiente próximo run)
 
 ---
 
@@ -143,7 +144,7 @@ Headroom estimado para ensemble:      ~___    GB    ← Agente 1 calcula
 
 ---
 
-## DÍAS 3–7 — PLANIFICADOS (ver Memory_Agent2.md)
+## DÍAS 3–7 — PLANIFICADOS (ver `Memory_Agent2.md` en ~/workspace/)
 
 ---
 
